@@ -1,4 +1,7 @@
 {
   "name": "ThinkMateChess",
-  "displayName": "ThinkMateChess"
+  "displayName": "ThinkMateChess",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-1503306553128874~2413438127"
+  }
 }

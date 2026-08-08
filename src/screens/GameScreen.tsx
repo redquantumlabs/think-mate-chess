@@ -19,6 +19,10 @@ import {
     game
 } from "../game/engine";
 
+import { RewardedAd, RewardedAdEventType, TestIds, AdEventType } from 'react-native-google-mobile-ads';
+
+const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-1503306553128874/8191278333';
+
 import { toSquare } from "../game/square";
 import { useThemeStyles } from "../theme/useThemeStyles";
 
@@ -37,7 +41,7 @@ export default function GameScreen({ route }: any) {
     const [selected, setSelected] = useState<string | null>(null);
     const [legalMoves, setLegalMoves] = useState<string[]>([]);
     const [status, setStatus] = useState("White's Turn");
-    const [promotionData, setPromotionData] = useState<{from: string, to: string} | null>(null);
+    const [promotionData, setPromotionData] = useState<{ from: string, to: string } | null>(null);
     const [checkSquare, setCheckSquare] = useState<string | null>(null);
     const [gameOverText, setGameOverText] = useState<string | null>(null);
 
@@ -45,6 +49,42 @@ export default function GameScreen({ route }: any) {
         from: string;
         to: string;
     } | null>(null);
+
+    const [undosRemaining, setUndosRemaining] = useState(1);
+    const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
+    const [adLoaded, setAdLoaded] = useState(false);
+
+    useEffect(() => {
+        const ad = RewardedAd.createForAdRequest(adUnitId, {
+            requestNonPersonalizedAdsOnly: true,
+        });
+
+        const unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+            setAdLoaded(true);
+        });
+
+        const unsubscribeEarned = ad.addAdEventListener(
+            RewardedAdEventType.EARNED_REWARD,
+            reward => {
+                setUndosRemaining(prev => prev + 1);
+            },
+        );
+
+        const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+            // Load a new ad for the next time
+            setAdLoaded(false);
+            ad.load();
+        });
+
+        ad.load();
+        setRewardedAd(ad);
+
+        return () => {
+            unsubscribeLoaded();
+            unsubscribeEarned();
+            unsubscribeClosed();
+        };
+    }, []);
 
     const refresh = () => {
         setBoard([...getBoard()]);
@@ -71,7 +111,7 @@ export default function GameScreen({ route }: any) {
             const captured = getCapturedPieces();
             const pieceValues: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 };
             const calculateScore = (pieces: string[]) => pieces.reduce((sum, p) => sum + (pieceValues[p] || 0), 0);
-            
+
             const history = game.history({ verbose: true }) as any[];
             let wPromo = 0;
             let bPromo = 0;
@@ -111,6 +151,7 @@ export default function GameScreen({ route }: any) {
         setLegalMoves([]);
         setLastMove(null);
         setPromotionData(null);
+        setUndosRemaining(1);
         updateGameStatus();
     };
 
@@ -126,9 +167,33 @@ export default function GameScreen({ route }: any) {
     };
 
     const handleUndo = () => {
+        if (undosRemaining <= 0) {
+            Alert.alert(
+                "No Undos Left",
+                "You have used your free undo for this game. Would you like to watch an ad to get 1 more undo?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                        text: "Watch Ad",
+                        onPress: () => {
+                            if (adLoaded && rewardedAd) {
+                                rewardedAd.show();
+                            } else {
+                                Alert.alert("Ad not ready", "Please try again in a few seconds.");
+                            }
+                        }
+                    }
+                ]
+            );
+            return;
+        }
+
+        // Deduct undo
+        setUndosRemaining(prev => prev - 1);
+
         // Undo once
         undoMove();
-        
+
         // If it's single player and still not the player's turn, undo again
         if (gameMode === "single" && getTurn() !== playerColor) {
             undoMove();
@@ -155,7 +220,7 @@ export default function GameScreen({ route }: any) {
                             from: result.move.from,
                             to: result.move.to,
                         });
-                        
+
                         if (soundEnabled) {
                             if (isGameOver()) {
                                 playSound('gameover');
@@ -180,25 +245,25 @@ export default function GameScreen({ route }: any) {
 
     const renderCaptured = (color: "w" | "b") => {
         const pieces = captured[color];
-        
+
         const pieceValues: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 };
-        
+
         const history = game.history({ verbose: true }) as any[];
         const playerWhoCaptured = color === "w" ? "b" : "w";
-        
+
         const lostPieces = captured[playerWhoCaptured];
         const lostScore = lostPieces.reduce((sum, p) => sum + (pieceValues[p] || 0), 0);
-        
+
         let promoScore = 0;
         for (const m of history) {
             if (m.promotion && m.color === playerWhoCaptured) {
                 promoScore += (pieceValues[m.promotion] || 0) - 1;
             }
         }
-        
+
         const currentScore = 39 - lostScore + promoScore;
         const displayName = playerWhoCaptured === "w" ? displayWhite : displayBlack;
-        
+
         return (
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: 8 * 44, marginVertical: 10, paddingHorizontal: 5 }}>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", flex: 1 }}>
@@ -310,94 +375,94 @@ export default function GameScreen({ route }: any) {
             <View style={[styles.board, playerColor === "b" && { transform: [{ rotate: "180deg" }] }]}>
                 {board.map((row, i) => (
                     <View key={i} style={styles.row}>
-                            {row.map((square, j) => {
-                                const sq = toSquare(j, i);
+                        {row.map((square, j) => {
+                            const sq = toSquare(j, i);
 
-                                let pieceContent = null;
-                                if (square?.type) {
-                                    if (pieceStyle === "symbol") {
-                                        const symbol = getPieceSymbol(`${square.color}${square.type}`);
+                            let pieceContent = null;
+                            if (square?.type) {
+                                if (pieceStyle === "symbol") {
+                                    const symbol = getPieceSymbol(`${square.color}${square.type}`);
+                                    pieceContent = (
+                                        <Text
+                                            style={[
+                                                styles.piece,
+                                                {
+                                                    color: isLightSquare(i, j)
+                                                        ? colors.customLightText
+                                                        : colors.customDarkText,
+                                                },
+                                            ]}
+                                        >
+                                            {symbol}
+                                        </Text>
+                                    );
+                                } else {
+                                    const assetSource = getPieceAssetSource(square.color, square.type, pieceStyle);
+                                    if (assetSource) {
                                         pieceContent = (
-                                            <Text
-                                                style={[
-                                                    styles.piece,
-                                                    {
-                                                        color: isLightSquare(i, j)
-                                                            ? colors.customLightText
-                                                            : colors.customDarkText,
-                                                    },
-                                                ]}
-                                            >
-                                                {symbol}
-                                            </Text>
+                                            <Image
+                                                source={assetSource}
+                                                style={styles.pieceImage}
+                                                resizeMode="contain"
+                                            />
                                         );
-                                    } else {
-                                        const assetSource = getPieceAssetSource(square.color, square.type, pieceStyle);
-                                        if (assetSource) {
-                                            pieceContent = (
-                                                <Image
-                                                    source={assetSource}
-                                                    style={styles.pieceImage}
-                                                    resizeMode="contain"
-                                                />
-                                            );
-                                        }
                                     }
                                 }
-                                
-                                const legal = !isBackground && showMoves && isLegalMove(sq);
-                                const isSel = !isBackground && selected === sq;
-                                const isLast = !isBackground && showMoves && isLastMove(sq);
-                                const isChk = !isBackground && showMoves && checkSquare === sq;
+                            }
 
-                                return (
-                                    <TouchableOpacity
-                                        key={j}
-                                        style={[
-                                            styles.square,
+                            const legal = !isBackground && showMoves && isLegalMove(sq);
+                            const isSel = !isBackground && selected === sq;
+                            const isLast = !isBackground && showMoves && isLastMove(sq);
+                            const isChk = !isBackground && showMoves && checkSquare === sq;
 
-                                            // THEME-BASED COLORS (NO HARD CODE)
-                                            {
-                                                backgroundColor: isChk
-                                                    ? "rgba(255, 0, 0, 0.7)"
-                                                    : isLightSquare(i, j)
-                                                        ? boardColors.lightSquare
-                                                        : boardColors.darkSquare,
-                                            },
+                            return (
+                                <TouchableOpacity
+                                    key={j}
+                                    style={[
+                                        styles.square,
 
-                                            // selected
-                                            isSel && {
-                                                borderWidth: 2,
-                                                borderColor: colors.selected,
-                                            },
+                                        // THEME-BASED COLORS (NO HARD CODE)
+                                        {
+                                            backgroundColor: isChk
+                                                ? "rgba(255, 0, 0, 0.7)"
+                                                : isLightSquare(i, j)
+                                                    ? boardColors.lightSquare
+                                                    : boardColors.darkSquare,
+                                        },
 
-                                            // last move
-                                            isLast && { backgroundColor: colors.lastMove },
-                                        ]}
-                                        onPress={() => !isBackground && handlePress(i, j)}
-                                        activeOpacity={isBackground ? 1 : 0.2}
-                                        disabled={isBackground}
-                                    >
-                                        <View style={playerColor === "b" ? { transform: [{ rotate: "180deg" }] } : {}}>
-                                            {pieceContent}
-                                        </View>
+                                        // selected
+                                        isSel && {
+                                            borderWidth: 2,
+                                            borderColor: colors.selected,
+                                        },
 
-                                        {legal && (
-                                            <View
-                                                style={{
-                                                    width: 10,
-                                                    height: 10,
-                                                    borderRadius: 5,
-                                                    backgroundColor: colors.legalDot,
-                                                    position: "absolute",
-                                                }}
-                                            />
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    ))}
+                                        // last move
+                                        isLast && { backgroundColor: colors.lastMove },
+                                    ]}
+                                    onPress={() => !isBackground && handlePress(i, j)}
+                                    activeOpacity={isBackground ? 1 : 0.2}
+                                    disabled={isBackground}
+                                >
+                                    <View style={playerColor === "b" ? { transform: [{ rotate: "180deg" }] } : {}}>
+                                        {pieceContent}
+                                    </View>
+
+                                    {legal && (
+                                        <View
+                                            style={{
+                                                width: 10,
+                                                height: 10,
+                                                borderRadius: 5,
+                                                backgroundColor: colors.legalDot,
+                                                position: "absolute",
+                                            }}
+                                        />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                ))}
             </View>
         );
     };
@@ -431,7 +496,7 @@ export default function GameScreen({ route }: any) {
 
                 <View style={styles.topControls}>
                     <TouchableOpacity onPress={handleUndo} style={styles.controlButton}>
-                        <Text style={styles.controlText}>Undo</Text>
+                        <Text style={styles.controlText}>Undo {undosRemaining > 0 ? `(${undosRemaining})` : '(Ad)'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={confirmReset} style={styles.controlButton}>
                         <Text style={styles.controlText}>Restart</Text>
@@ -464,21 +529,21 @@ export default function GameScreen({ route }: any) {
                     <View style={styles.promotionOverlay}>
                         <View style={[styles.promotionBox, { backgroundColor: colors.customBackground }]}>
                             <Text style={[styles.title, { color: colors.text, marginBottom: 20 }]}>Promote to</Text>
-                            
+
                             <View style={styles.promotionOptions}>
                                 {['q', 'r', 'b', 'n'].map(p => (
-                                    <TouchableOpacity 
-                                        key={p} 
-                                        style={[styles.promotionOption, { backgroundColor: boardColors.lightSquare }]} 
+                                    <TouchableOpacity
+                                        key={p}
+                                        style={[styles.promotionOption, { backgroundColor: boardColors.lightSquare }]}
                                         onPress={() => executeMove(promotionData.from, promotionData.to, p)}
                                     >
                                         {pieceStyle === "symbol" ? (
                                             <Text style={styles.piece}>{getPieceSymbol(getTurn() + p)}</Text>
                                         ) : (
-                                            <Image 
-                                                source={getPieceAssetSource(getTurn(), p, pieceStyle)} 
-                                                style={styles.pieceImage} 
-                                                resizeMode="contain" 
+                                            <Image
+                                                source={getPieceAssetSource(getTurn(), p, pieceStyle)}
+                                                style={styles.pieceImage}
+                                                resizeMode="contain"
                                             />
                                         )}
                                     </TouchableOpacity>
