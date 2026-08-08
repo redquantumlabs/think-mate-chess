@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image, Modal, Alert, Dimensions } from "react-native";
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { useFocusEffect } from "@react-navigation/native";
 
 import {
@@ -43,7 +44,7 @@ export default function GameScreen({ route }: any) {
     const [status, setStatus] = useState("White's Turn");
     const [promotionData, setPromotionData] = useState<{ from: string, to: string } | null>(null);
     const [checkSquare, setCheckSquare] = useState<string | null>(null);
-    const [gameOverText, setGameOverText] = useState<string | null>(null);
+    const [gameOverInfo, setGameOverInfo] = useState<{ reason: string, winner: string | null, whiteScore: number, blackScore: number, isPlayerWinner: boolean } | null>(null);
 
     const [lastMove, setLastMove] = useState<{
         from: string;
@@ -107,7 +108,7 @@ export default function GameScreen({ route }: any) {
 
         if (isGameOver()) {
             const reason = getGameOverReason();
-            const winner = reason === "Checkmate" ? (turn === 'w' ? `${displayBlack} Wins!` : `${displayWhite} Wins!`) : "";
+            const winner = reason === "Checkmate" ? (turn === 'w' ? displayBlack : displayWhite) : null;
             const captured = getCapturedPieces();
             const pieceValues: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 };
             const calculateScore = (pieces: string[]) => pieces.reduce((sum, p) => sum + (pieceValues[p] || 0), 0);
@@ -125,11 +126,21 @@ export default function GameScreen({ route }: any) {
 
             const whiteScore = 39 - calculateScore(captured.w) + wPromo;
             const blackScore = 39 - calculateScore(captured.b) + bPromo;
-            const scoreText = `\n${displayWhite}'s Points: ${whiteScore}/39 | ${displayBlack}'s Points: ${blackScore}/39`;
-            setGameOverText(`${reason}${winner ? `\n${winner}` : ''}${scoreText}`);
+            
+            let isPlayerWinner = false;
+            if (winner) {
+                if (gameMode === "single") {
+                    const playerColorName = playerColor === 'w' ? displayWhite : displayBlack;
+                    isPlayerWinner = winner === playerColorName;
+                } else {
+                    isPlayerWinner = true;
+                }
+            }
+
+            setGameOverInfo({ reason, winner, whiteScore, blackScore, isPlayerWinner });
             currentStatus = "Game Over";
         } else {
-            setGameOverText(null);
+            setGameOverInfo(null);
         }
 
         if (isCheck()) {
@@ -152,6 +163,7 @@ export default function GameScreen({ route }: any) {
         setLastMove(null);
         setPromotionData(null);
         setUndosRemaining(1);
+        setGameOverInfo(null);
         updateGameStatus();
     };
 
@@ -514,13 +526,53 @@ export default function GameScreen({ route }: any) {
             </View>
 
             {/* Game Over Modal / Overlay */}
-            {gameOverText && (
-                <View style={styles.gameOverContainer}>
-                    <Text style={styles.gameOverText}>{gameOverText}</Text>
-                    <TouchableOpacity style={styles.playAgainButton} onPress={handleReset}>
-                        <Text style={styles.playAgainText}>Play Again</Text>
-                    </TouchableOpacity>
-                </View>
+            {gameOverInfo && (
+                <Modal transparent animationType="fade" visible={true}>
+                    <View style={styles.gameOverOverlay}>
+                        {gameOverInfo.isPlayerWinner && (
+                            <ConfettiCannon 
+                                count={200} 
+                                origin={{x: width / 2, y: -20}} 
+                                autoStart={true} 
+                                fadeOut={true}
+                            />
+                        )}
+                        <View style={[styles.gameOverBox, { backgroundColor: isDark ? "#1e1e1e" : "#ffffff" }]}>
+                            {gameOverInfo.winner ? (
+                                <>
+                                    <Text style={[styles.gameOverWinner, { color: isDark ? "#fff" : "#000" }]}>
+                                        {gameOverInfo.winner} Wins!
+                                    </Text>
+                                    <Text style={[styles.gameOverReason, { color: isDark ? "#aaa" : "#666" }]}>
+                                        by {gameOverInfo.reason}
+                                    </Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={[styles.gameOverWinner, { color: isDark ? "#fff" : "#000" }]}>Draw!</Text>
+                                    <Text style={[styles.gameOverReason, { color: isDark ? "#aaa" : "#666" }]}>
+                                        {gameOverInfo.reason}
+                                    </Text>
+                                </>
+                            )}
+
+                            {showPoints && (
+                                <View style={styles.gameOverScores}>
+                                    <Text style={[styles.gameOverScoreText, { color: isDark ? "#ccc" : "#444" }]}>
+                                        {displayWhite}: {gameOverInfo.whiteScore} pts
+                                    </Text>
+                                    <Text style={[styles.gameOverScoreText, { color: isDark ? "#ccc" : "#444" }]}>
+                                        {displayBlack}: {gameOverInfo.blackScore} pts
+                                    </Text>
+                                </View>
+                            )}
+
+                            <TouchableOpacity style={styles.playAgainButton} onPress={handleReset}>
+                                <Text style={styles.playAgainText}>Play Again</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             )}
 
             {/* Promotion Modal */}
@@ -681,36 +733,60 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
 
-    gameOverContainer: {
-        position: "absolute",
-        top: "40%",
-        width: "80%",
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
+    gameOverOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 100,
+    },
+    gameOverBox: {
+        width: "85%",
         padding: 30,
-        borderRadius: 20,
+        borderRadius: 24,
         alignItems: "center",
         elevation: 10,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.3,
-        shadowRadius: 5,
+        shadowRadius: 20,
     },
-
-    gameOverText: {
-        color: "white",
-        fontSize: 28,
-        fontWeight: "bold",
+    gameOverWinner: {
+        fontSize: 32,
+        fontWeight: "900",
         textAlign: "center",
-        marginBottom: 20,
+        marginBottom: 5,
     },
-
+    gameOverReason: {
+        fontSize: 16,
+        textAlign: "center",
+        marginBottom: 25,
+        fontWeight: "500",
+        textTransform: "uppercase",
+        letterSpacing: 1,
+    },
+    gameOverScores: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        width: "100%",
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        backgroundColor: "rgba(150, 150, 150, 0.1)",
+        borderRadius: 12,
+        marginBottom: 25,
+    },
+    gameOverScoreText: {
+        fontSize: 16,
+        fontWeight: "bold",
+    },
     playAgainButton: {
-        backgroundColor: "#4aa3ff",
-        paddingVertical: 12,
-        paddingHorizontal: 30,
-        borderRadius: 10,
+        backgroundColor: "#2e7d32",
+        paddingVertical: 14,
+        paddingHorizontal: 40,
+        borderRadius: 30,
+        width: "100%",
+        alignItems: "center",
     },
-
     playAgainText: {
         color: "white",
         fontSize: 18,

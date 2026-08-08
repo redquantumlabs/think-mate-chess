@@ -4,6 +4,19 @@ import { useThemeStyles } from "../theme/useThemeStyles";
 import Icon from "react-native-vector-icons/FontAwesome5";
 import { useTheme } from "../context/ThemeContext";
 
+interface RuleItem {
+    name: string;
+    description: string;
+    icon?: string;
+}
+
+interface RuleSection {
+    sectionTitle: string;
+    icon: string;
+    content?: string;
+    items?: RuleItem[];
+}
+
 export default function RulesScreen() {
     const { colors } = useThemeStyles();
     const { theme } = useTheme();
@@ -13,7 +26,7 @@ export default function RulesScreen() {
     const borderColor = isDark ? "#333" : "#e0e0e0";
     const subTextColor = isDark ? "#aaaaaa" : "#666666";
 
-    const rulesData = [
+    const rulesData: RuleSection[] = [
         {
             sectionTitle: "Setup",
             icon: "chess-board",
@@ -56,7 +69,7 @@ export default function RulesScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.header}>
                     <Text style={[styles.mainTitle, { color: colors.text }]}>Rules of Chess</Text>
-                    <Text style={[styles.subtitle, { color: subTextColor }]}>Learn how to play the royal game</Text>
+                    <Text style={[styles.subtitle, { color: subTextColor }]}>Learn how to play the chess game</Text>
                 </View>
 
                 {rulesData.map((section, index) => (
