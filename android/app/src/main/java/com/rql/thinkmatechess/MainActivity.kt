@@ -1,4 +1,4 @@
-package com.thinkmatechess
+package com.rql.thinkmatechess
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

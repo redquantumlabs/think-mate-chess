@@ -1,4 +1,4 @@
-package com.thinkmatechess
+package com.rql.thinkmatechess
 
 import android.app.Application
 import com.facebook.react.PackageList

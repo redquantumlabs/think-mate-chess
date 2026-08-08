@@ -162,6 +162,18 @@ export function resetGame() {
     game.reset();
 }
 
+// load from history
+export function loadGameFromHistory(history: string[]) {
+    game.reset();
+    for (const move of history) {
+        game.move(move);
+    }
+}
+
+export function getHistorySAN(): string[] {
+    return game.history() as string[];
+}
+
 // undo
 export function undoMove() {
     return game.undo();
