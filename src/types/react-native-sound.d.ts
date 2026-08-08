@@ -7,5 +7,6 @@ declare module 'react-native-sound' {
         stop(cb?: () => void): this;
         release(): void;
         static setCategory(value: string): void;
+        static MAIN_BUNDLE: string;
     }
 }

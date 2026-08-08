@@ -5,24 +5,24 @@ Sound.setCategory('Playback');
 
 export const playSound = async (type: 'move' | 'capture' | 'check' | 'gameover') => {
     try {
-        let soundModule: any;
+        let soundModule: string | undefined;
         switch (type) {
             case 'move':
-                soundModule = require('../../assets/sounds/move.mp3');
+                soundModule = 'move.mp3';
                 break;
             case 'capture':
-                soundModule = require('../../assets/sounds/capture.mp3');
+                soundModule = 'capture.mp3';
                 break;
             case 'check':
-                soundModule = require('../../assets/sounds/check.mp3');
+                soundModule = 'check.mp3';
                 break;
             case 'gameover':
-                soundModule = require('../../assets/sounds/gameover.mp3');
+                soundModule = 'gameover.mp3';
                 break;
         }
         
         if (soundModule) {
-            const sound = new Sound(soundModule, (error) => {
+            const sound = new Sound(soundModule, Sound.MAIN_BUNDLE, (error) => {
                 if (error) {
                     console.warn('failed to load the sound', error);
                     return;
