@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useGameSettings, PieceStyle, Difficulty } from "../context/GameSettingsContext";
 
@@ -161,6 +161,16 @@ export default function SettingsScreen() {
                 ))}
             </View>
 
+            <Text style={[styles.sectionTitle, isDark && styles.darkText, { marginTop: 20 }]}>About</Text>
+            <View style={styles.aboutContainer}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://sites.google.com/view/thinkmate-chess-legal/privacy-policy')} style={styles.aboutRow}>
+                    <Text style={[styles.aboutText, isDark && styles.darkText]}>Privacy Policy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL('https://sites.google.com/view/thinkmate-chess-legal/terms-conditions')} style={styles.aboutRow}>
+                    <Text style={[styles.aboutText, isDark && styles.darkText]}>Terms & Conditions</Text>
+                </TouchableOpacity>
+            </View>
+
         </ScrollView>
     );
 }
@@ -284,5 +294,22 @@ const styles = StyleSheet.create({
     segmentTextActive: {
         color: "white",
         fontWeight: "bold",
+    },
+
+    aboutContainer: {
+        width: "90%",
+        marginTop: 10,
+        marginBottom: 20,
+    },
+
+    aboutRow: {
+        paddingVertical: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: "#555",
+    },
+
+    aboutText: {
+        fontSize: 16,
+        fontWeight: "500",
     },
 });
