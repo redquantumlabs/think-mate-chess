@@ -126,13 +126,11 @@ export default function GameScreen({ route }: any) {
     };
 
     const handleUndo = () => {
-        if (gameMode !== "single") return;
-
         // Undo once
         undoMove();
         
-        // If it's still not the player's turn (i.e. we undid the computer's move but now it's our previous move), undo again
-        if (getTurn() !== playerColor) {
+        // If it's single player and still not the player's turn, undo again
+        if (gameMode === "single" && getTurn() !== playerColor) {
             undoMove();
         }
 
@@ -432,11 +430,9 @@ export default function GameScreen({ route }: any) {
                 </Text>
 
                 <View style={styles.topControls}>
-                    {gameMode === "single" && (
-                        <TouchableOpacity onPress={handleUndo} style={styles.controlButton}>
-                            <Text style={styles.controlText}>Undo</Text>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity onPress={handleUndo} style={styles.controlButton}>
+                        <Text style={styles.controlText}>Undo</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={confirmReset} style={styles.controlButton}>
                         <Text style={styles.controlText}>Restart</Text>
                     </TouchableOpacity>
