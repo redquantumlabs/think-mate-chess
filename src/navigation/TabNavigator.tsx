@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 import HomeScreen from "../screens/HomeScreen";
+import RulesScreen from "../screens/RulesScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import { useTheme } from "../context/ThemeContext";
 
@@ -25,6 +26,8 @@ export default function TabNavigator() {
 
                     if (route.name === "Home") {
                         iconName = "home-outline";
+                    } else if (route.name === "Rules") {
+                        iconName = "book-outline";
                     } else if (route.name === "Settings") {
                         iconName = "settings-outline";
                     }
@@ -37,6 +40,7 @@ export default function TabNavigator() {
             })}
         >
             <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen name="Rules" component={RulesScreen} />
             <Tab.Screen name="Settings" component={SettingsScreen} />
         </Tab.Navigator>
     );
