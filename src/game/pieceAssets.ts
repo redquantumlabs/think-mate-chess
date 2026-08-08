@@ -1,5 +1,5 @@
+import { Image } from "react-native";
 import { PieceStyle } from "../context/GameSettingsContext";
-
 // In React Native, local images must be statically required.
 const ASSETS: Record<Exclude<PieceStyle, "symbol">, Record<string, any>> = {
     "3d": {
@@ -138,4 +138,19 @@ export const getPieceAssetSource = (color: string, type: string, style: PieceSty
     const key = `${color}${type}`.toLowerCase();
     
     return ASSETS[style][key] || null;
+};
+
+export const preloadAllAssets = async () => {
+    const promises = [];
+    for (const style in ASSETS) {
+        const pieceGroup = ASSETS[style as keyof typeof ASSETS];
+        for (const piece in pieceGroup) {
+            const asset = pieceGroup[piece];
+            const source = Image.resolveAssetSource(asset);
+            if (source && source.uri) {
+                promises.push(Image.prefetch(source.uri));
+            }
+        }
+    }
+    await Promise.allSettled(promises);
 };
